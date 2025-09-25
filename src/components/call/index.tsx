@@ -5,14 +5,17 @@ import {
   AlarmClockIcon,
   XCircleIcon,
   CheckCircleIcon,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
+import { InterviewService } from "@/services/interviews.service";
 import { Card, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { useResponses } from "@/contexts/responses.context";
 import Image from "next/image";
 import axios from "axios";
-import { RetellWebClient } from "retell-client-js-sdk";
+import { GptRealtimeWebClient } from "@/lib/gptRealtimeWebClient";
 import MiniLoader from "../loaders/mini-loader/miniLoader";
 import { toast } from "sonner";
 import { isLightColor, testEmail } from "@/lib/utils";
@@ -36,9 +39,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { InterviewerService } from "@/services/interviewers.service";
 
-const webClient = new RetellWebClient();
+// webClient will be created with interview-specific instructions
 
 type InterviewProps = {
   interview: Interview;
@@ -59,7 +61,49 @@ type transcriptType = {
 };
 
 function Call({ interview }: InterviewProps) {
+  // Recording state
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [recording, setRecording] = useState(false);
+  // Start recording when interview starts
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      setAudioChunks([]);
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        setAudioChunks((prev) => [...prev, e.data]);
+      };
+      mediaRecorderRef.current.start();
+      setRecording(true);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    }
+  };
+
+  // Stop recording and upload
+  const stopRecordingAndUpload = React.useCallback(async () => {
+    if (!mediaRecorderRef.current) {
+      return;
+    }
+    mediaRecorderRef.current.stop();
+    setRecording(false);
+    mediaRecorderRef.current.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      const file = new File([audioBlob], "interview.webm", { type: "audio/webm" });
+      await InterviewService.uploadInterviewRecording(interview.id, file);
+    };
+  }, [audioChunks, interview.id]);
   const { createResponse } = useResponses();
+  const [webClient] = useState(() => {
+    const questions = interview.questions?.map(q => q.question).filter(q => q && q.trim()) || [];
+    
+return new GptRealtimeWebClient(
+      interview.agent_instructions || "",
+      questions,
+      interview.objective || ""
+    );
+  });
   const [lastInterviewerResponse, setLastInterviewerResponse] =
     useState<string>("");
   const [lastUserResponse, setLastUserResponse] = useState<string>("");
@@ -76,11 +120,14 @@ function Call({ interview }: InterviewProps) {
   const { tabSwitchCount } = useTabSwitchPrevention();
   const [isFeedbackSubmitted, setIsFeedbackSubmitted] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [interviewerImg, setInterviewerImg] = useState("");
+  const [interviewerImg, setInterviewerImg] = useState("/user-icon.png");
   const [interviewTimeDuration, setInterviewTimeDuration] =
     useState<string>("1");
   const [time, setTime] = useState(0);
   const [currentTimeDuration, setCurrentTimeDuration] = useState<string>("0");
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [userPauseSecondsLeft, setUserPauseSecondsLeft] = useState<number | null>(null);
+  const pauseWindowSeconds = 15;
 
   const lastUserResponseRef = useRef<HTMLDivElement | null>(null);
 
@@ -113,6 +160,39 @@ function Call({ interview }: InterviewProps) {
     }
   }, [lastUserResponse]);
 
+  // Handle pause countdown when it's the user's turn
+  useEffect(() => {
+    let timerId: any;
+    if (activeTurn === "user" && isCalling && !isEnded) {
+      // Start/reset countdown
+      setUserPauseSecondsLeft(pauseWindowSeconds);
+      timerId = setInterval(() => {
+        setUserPauseSecondsLeft((prev) => {
+          if (prev === null) { 
+            return pauseWindowSeconds; 
+          }
+          
+return prev > 0 ? prev - 1 : 0;
+        });
+      }, 1000);
+    } else {
+      setUserPauseSecondsLeft(null);
+    }
+
+    return () => {
+      if (timerId) { 
+        clearInterval(timerId); 
+      }
+    };
+  }, [activeTurn, isCalling, isEnded]);
+
+  // Reset the countdown whenever the user speaks again
+  useEffect(() => {
+    if (activeTurn === "user" && isCalling && !isEnded) {
+      setUserPauseSecondsLeft(pauseWindowSeconds);
+    }
+  }, [lastUserResponse, activeTurn, isCalling, isEnded]);
+
   useEffect(() => {
     let intervalId: any;
     if (isCalling) {
@@ -139,12 +219,14 @@ function Call({ interview }: InterviewProps) {
     webClient.on("call_started", () => {
       console.log("Call started");
       setIsCalling(true);
+      startRecording();
     });
 
     webClient.on("call_ended", () => {
       console.log("Call ended");
       setIsCalling(false);
       setIsEnded(true);
+      stopRecordingAndUpload();
     });
 
     webClient.on("agent_start_talking", () => {
@@ -161,6 +243,7 @@ function Call({ interview }: InterviewProps) {
       webClient.stopCall();
       setIsEnded(true);
       setIsCalling(false);
+      toast.error("Call failed: " + (error.message || "Unknown error"));
     });
 
     webClient.on("update", (update) => {
@@ -182,7 +265,7 @@ function Call({ interview }: InterviewProps) {
       // Clean up event listeners
       webClient.removeAllListeners();
     };
-  }, []);
+  }, [webClient, interview.name, interview.objective, interview.questions, interview.agent_instructions, stopRecordingAndUpload]);
 
   const onEndCallClick = async () => {
     if (isStarted) {
@@ -214,30 +297,55 @@ function Call({ interview }: InterviewProps) {
     if (OldUser) {
       setIsOldUser(true);
     } else {
-      const registerCallResponse: registerCallResponseType = await axios.post(
-        "/api/register-call",
-        { dynamic_data: data, interviewer_id: interview?.interviewer_id },
-      );
-      if (registerCallResponse.data.registerCallResponse.access_token) {
-        await webClient
-          .startCall({
-            accessToken:
-              registerCallResponse.data.registerCallResponse.access_token,
-          })
-          .catch(console.error);
-        setIsCalling(true);
-        setIsStarted(true);
+      try {
+        // Request microphone permission first
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+          console.log("Microphone permission granted");
+        } catch (micError) {
+          console.error("Microphone permission denied:", micError);
+          toast.error("Microphone access is required for the interview");
+          setLoading(false);
+          
+return;
+        }
 
-        setCallId(registerCallResponse?.data?.registerCallResponse?.call_id);
+        const registerCallResponse: registerCallResponseType = await axios.post(
+          "/api/register-call",
+          { dynamic_data: data },
+        );
+        if (registerCallResponse.data.registerCallResponse.access_token) {
+          await webClient
+            .startCall({
+              accessToken:
+                registerCallResponse.data.registerCallResponse.access_token,
+            })
+            .then(() => {
+              console.log("Call started successfully");
+              toast.success("Interview started! You can now speak with the AI interviewer.");
+            })
+            .catch((error) => {
+              console.error("Error starting call:", error);
+              toast.error("Failed to start interview: " + (error.message || "Unknown error"));
+            });
+          setIsCalling(true);
+          setIsStarted(true);
 
-        const response = await createResponse({
-          interview_id: interview.id,
+          setCallId(registerCallResponse?.data?.registerCallResponse?.call_id);
+
+          const response = await createResponse({
+            interview_id: interview.id,
           call_id: registerCallResponse.data.registerCallResponse.call_id,
           email: email,
           name: name,
         });
       } else {
         console.log("Failed to register call");
+        toast.error("Failed to register call");
+      }
+      } catch (error) {
+        console.error("Error in startConversation:", error);
+        toast.error("Failed to start interview");
       }
     }
 
@@ -250,24 +358,63 @@ function Call({ interview }: InterviewProps) {
     }
   }, [interview]);
 
-  useEffect(() => {
-    const fetchInterviewer = async () => {
-      const interviewer = await InterviewerService.getInterviewer(
-        interview.interviewer_id,
-      );
-      setInterviewerImg(interviewer.image);
-    };
-    fetchInterviewer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interview.interviewer_id]);
+  // No longer need to fetch interviewer since we're using GPT voice agent
 
   useEffect(() => {
     if (isEnded) {
       const updateInterview = async () => {
+        const endTs = Date.now();
+        const startTs = endTs - (time * 1000); // Convert time to milliseconds
+        
+        // Build complete transcript from all conversation
+        const fullTranscript = webClient.getTranscript();
+        const transcriptText = fullTranscript.map(item => 
+          `${item.role === 'agent' ? 'Interviewer' : 'Candidate'}: ${item.content}`
+        ).join('\n');
+        
+        const details = {
+          start_timestamp: startTs,
+          end_timestamp: endTs,
+          transcript: transcriptText,
+          duration: Math.floor((endTs - startTs) / 1000), // Duration in seconds
+        };
+        
+        console.log("Saving response with details:", details);
+        
+        // Save the response first
         await ResponseService.saveResponse(
-          { is_ended: true, tab_switch_count: tabSwitchCount },
+          { 
+            is_ended: true, 
+            tab_switch_count: tabSwitchCount, 
+            details,
+            duration: Math.floor((endTs - startTs) / 1000)
+          },
           callId,
         );
+
+        // Generate post-call analysis
+        try {
+          const questions = interview.questions?.map(q => q.question).filter(q => q && q.trim()) || [];
+          const analysisResponse = await axios.post("/api/generate-post-call-analysis", {
+            transcript: transcriptText,
+            interviewObjective: interview.objective,
+            questions: questions
+          });
+
+          if (analysisResponse.data.analysis) {
+            // Save the analysis
+            await ResponseService.saveResponse(
+              { 
+                analytics: analysisResponse.data.analysis,
+                is_analysed: true
+              },
+              callId,
+            );
+            console.log("Post-call analysis saved successfully");
+          }
+        } catch (analysisError) {
+          console.error("Failed to generate post-call analysis:", analysisError);
+        }
       };
 
       updateInterview();
@@ -412,15 +559,35 @@ function Call({ interview }: InterviewProps) {
               </div>
             )}
             {isStarted && !isEnded && !isOldUser && (
-              <div className="flex flex-row p-2 grow">
-                <div className="border-x-2 border-grey w-[50%] my-auto min-h-[70%]">
-                  <div className="flex flex-col justify-evenly">
-                    <div
-                      className={`text-[22px] w-[80%] md:text-[26px] mt-4 min-h-[250px] mx-auto px-6`}
-                    >
-                      {lastInterviewerResponse}
-                    </div>
-                    <div className="flex flex-col mx-auto justify-center items-center align-middle">
+              <div className="flex flex-col p-2 grow">
+                {/* Top action bar */}
+                <div className="flex items-center justify-end gap-2 px-4 py-2 border-b">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (!isCalling) {return;}
+                      if (isMicMuted) {
+                        (webClient as any).unmuteMic?.();
+                        setIsMicMuted(false);
+                      } else {
+                        (webClient as any).muteMic?.();
+                        setIsMicMuted(true);
+                      }
+                    }}
+                  >
+                    {isMicMuted ? (
+                      <><MicOff className="w-4 h-4 mr-2" /> Unmute</>
+                    ) : (
+                      <><Mic className="w-4 h-4 mr-2" /> Mute</>
+                    )}
+                  </Button>
+                </div>
+                {/* Conversation area */}
+                <div className="flex flex-row gap-4 p-4 grow">
+                  {/* Interviewer column */}
+                  <div className="flex-1 border rounded-lg p-4 bg-white">
+                    <div className={`text-[20px] md:text-[24px] min-h-[220px] whitespace-pre-line`}>{lastInterviewerResponse}</div>
+                    <div className="flex flex-col mt-4 mx-auto justify-center items-center align-middle">
                       <Image
                         src={interviewerImg}
                         alt="Image of the interviewer"
@@ -432,31 +599,27 @@ function Call({ interview }: InterviewProps) {
                             : ""
                         }`}
                       />
-                      <div className="font-semibold">Interviewer</div>
+                      <div className="font-semibold mt-2">Interviewer</div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex flex-col justify-evenly w-[50%]">
-                  <div
-                    ref={lastUserResponseRef}
-                    className={`text-[22px] w-[80%] md:text-[26px] mt-4 mx-auto h-[250px] px-6 overflow-y-auto`}
-                  >
-                    {lastUserResponse}
-                  </div>
-                  <div className="flex flex-col mx-auto justify-center items-center align-middle">
-                    <Image
-                      src={`/user-icon.png`}
-                      alt="Picture of the user"
-                      width={120}
-                      height={120}
-                      className={`object-cover object-center mx-auto my-auto ${
-                        activeTurn === "user"
-                          ? `border-4 border-[${interview.theme_color}] rounded-full`
-                          : ""
-                      }`}
-                    />
-                    <div className="font-semibold">You</div>
+                  {/* Candidate column */}
+                  <div className="flex-1 border rounded-lg p-4 bg-white">
+                    {/* User transcript intentionally hidden on live call UI */}
+                    <div className="flex flex-col mt-4 mx-auto justify-center items-center align-middle">
+                      <Image
+                        src={`/user-icon.png`}
+                        alt="Picture of the user"
+                        width={120}
+                        height={120}
+                        className={`object-cover object-center mx-auto my-auto ${
+                          activeTurn === "user"
+                            ? `border-4 border-[${interview.theme_color}] rounded-full`
+                            : ""
+                        }`}
+                      />
+                      <div className="font-semibold mt-2">You</div>
+                    </div>
                   </div>
                 </div>
               </div>

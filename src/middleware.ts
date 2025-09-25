@@ -19,11 +19,8 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) {
-    auth().protect();
-  }
-
-  if (!auth().userId && isProtectedRoute(req)) {
+  // If route is protected and user is not signed in, redirect to sign-in
+  if (!isPublicRoute(req) && !auth().userId) {
     return auth().redirectToSignIn();
   }
 });

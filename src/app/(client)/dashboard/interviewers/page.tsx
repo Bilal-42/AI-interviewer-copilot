@@ -8,38 +8,38 @@ import InterviewerCard from "@/components/dashboard/interviewer/interviewerCard"
 import CreateInterviewerButton from "@/components/dashboard/interviewer/createInterviewerButton";
 
 function Interviewers() {
-  const { interviewers, interviewersLoading } = useInterviewers();
-
-  const slideLeft = () => {
-    var slider = document.getElementById("slider");
-    if (slider) {
-      slider.scrollLeft = slider.scrollLeft - 190;
-    }
-  };
-
-  const slideRight = () => {
-    var slider = document.getElementById("slider");
-    if (slider) {
-      slider.scrollLeft = slider.scrollLeft + 190;
-    }
-  };
-
-  function InterviewersLoader() {
-    return (
-      <>
-        <div className="flex">
-          <div className="h-40 w-36 ml-1 mr-3 flex-none animate-pulse rounded-xl bg-gray-300" />
-          <div className="h-40 w-36 ml-1 mr-3 flex-none animate-pulse rounded-xl bg-gray-300" />
-          <div className="h-40 w-36 ml-1 mr-3 flex-none animate-pulse rounded-xl bg-gray-300" />
-        </div>
-      </>
-    );
-  }
+  // Dummy data for interviewers
+  const dummyInterviewers = [
+    {
+      name: "Alice Johnson",
+      techStack: "React, Node.js",
+      slot: "10:00 AM - 11:00 AM",
+      status: "Available",
+    },
+    {
+      name: "Bob Smith",
+      techStack: "Python, Django",
+      slot: "11:30 AM - 12:30 PM",
+      status: "Busy",
+    },
+    {
+      name: "Carol Lee",
+      techStack: "Java, Spring Boot",
+      slot: "2:00 PM - 3:00 PM",
+      status: "Available",
+    },
+    {
+      name: "David Kim",
+      techStack: "Go, Kubernetes",
+      slot: "3:30 PM - 4:30 PM",
+      status: "Offline",
+    },
+  ];
 
   return (
     <main className="p-8 pt-0 ml-12 mr-auto rounded-md">
       <div className="flex flex-col items-left">
-        <div className="flex flex-row mt-5">
+        <div className="flex flex-row mt-5 mb-6">
           <div>
             <h2 className="mr-2 text-2xl font-semibold tracking-tight mt-3">
               Interviewers
@@ -49,41 +49,37 @@ function Interviewers() {
             </h3>
           </div>
         </div>
-        <div className="relative flex items-center mt-2 ">
-          <div
-            id="slider"
-            className=" h-44 pt-2 overflow-x-scroll scroll whitespace-nowrap scroll-smooth scrollbar-hide w-[40rem]"
-          >
-            {interviewers.length === 0 ? <CreateInterviewerButton /> : <></>}
-            {!interviewersLoading ? (
-              <>
-                {interviewers.map((interviewer) => (
-                  <InterviewerCard
-                    key={interviewer.id}
-                    interviewer={interviewer}
-                  />
-                ))}
-              </>
-            ) : (
-              <InterviewersLoader />
-            )}
-          </div>
-          {interviewers.length > 4 ? (
-            <div className="flex-row justify-center items-center space-y-10">
-              <ChevronRight
-                className="opacity-50 cursor-pointer hover:opacity-100"
-                size={40}
-                onClick={slideRight}
-              />
-              <ChevronLeft
-                className="opacity-50 cursor-pointer hover:opacity-100"
-                size={40}
-                onClick={() => slideLeft()}
-              />
-            </div>
-          ) : (
-            <></>
-          )}
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white rounded-lg shadow-md">
+            <thead>
+              <tr className="bg-indigo-100 text-indigo-800">
+                <th className="py-3 px-6 text-left font-semibold">Name</th>
+                <th className="py-3 px-6 text-left font-semibold">Tech Stack</th>
+                <th className="py-3 px-6 text-left font-semibold">Slot</th>
+                <th className="py-3 px-6 text-left font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dummyInterviewers.map((interviewer, idx) => (
+                <tr key={idx} className="border-b hover:bg-indigo-50">
+                  <td className="py-3 px-6">{interviewer.name}</td>
+                  <td className="py-3 px-6">{interviewer.techStack}</td>
+                  <td className="py-3 px-6">{interviewer.slot}</td>
+                  <td className="py-3 px-6">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      interviewer.status === "Available"
+                        ? "bg-green-100 text-green-700"
+                        : interviewer.status === "Busy"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-gray-200 text-gray-600"
+                    }`}>
+                      {interviewer.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </main>

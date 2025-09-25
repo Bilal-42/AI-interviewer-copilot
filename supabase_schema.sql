@@ -40,7 +40,7 @@ CREATE TABLE interview (
     objective TEXT,
     organization_id TEXT REFERENCES organization(id),
     user_id TEXT REFERENCES "user"(id),
-    interviewer_id INTEGER REFERENCES interviewer(id),
+    agent_instructions TEXT,
     is_active BOOLEAN DEFAULT true,
     is_anonymous BOOLEAN DEFAULT false,
     is_archived BOOLEAN DEFAULT false,

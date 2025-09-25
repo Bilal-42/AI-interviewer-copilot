@@ -4,11 +4,11 @@ import { Interview, Question } from "@/types/interview";
 import React, { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Plus, SaveIcon, TrashIcon } from "lucide-react";
-import { useInterviewers } from "@/contexts/interviewers.context";
 import QuestionCard from "@/components/dashboard/interview/create-popup/questionCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useInterviews } from "@/contexts/interviews.context";
 import { InterviewService } from "@/services/interviews.service";
 import { CardTitle } from "../../ui/card";
@@ -33,7 +33,6 @@ type EditInterviewProps = {
 };
 
 function EditInterview({ interview }: EditInterviewProps) {
-  const { interviewers } = useInterviewers();
   const { fetchInterviews } = useInterviews();
 
   const [description, setDescription] = useState<string>(
@@ -51,8 +50,8 @@ function EditInterview({ interview }: EditInterviewProps) {
   const [questions, setQuestions] = useState<Question[]>(
     interview?.questions || [],
   );
-  const [selectedInterviewer, setSelectedInterviewer] = useState(
-    interview?.interviewer_id,
+  const [agentInstructions, setAgentInstructions] = useState(
+    interview?.agent_instructions || "",
   );
   const [isAnonymous, setIsAnonymous] = useState<boolean>(
     interview?.is_anonymous || false,
@@ -104,11 +103,11 @@ function EditInterview({ interview }: EditInterviewProps) {
     const interviewData = {
       objective: objective,
       questions: questions,
-      interviewer_id: Number(selectedInterviewer),
       question_count: questionCount,
       time_duration: Number(duration),
       description: description,
       is_anonymous: isAnonymous,
+      agent_instructions: agentInstructions,
     };
 
     try {
@@ -242,42 +241,14 @@ function EditInterview({ interview }: EditInterviewProps) {
         />
         <div className="flex flex-row gap-3">
           <div>
-            <p className="mt-3 mb-1 ml-2 font-medium">Interviewer</p>
-            <div className=" flex items-center mt-1">
-              <div
-                id="slider-3"
-                className=" h-32 pt-1 ml-2 overflow-x-scroll scroll whitespace-nowrap scroll-smooth scrollbar-hide w-[27.5rem]"
-              >
-                {interviewers.map((item) => (
-                  <div
-                    className=" p-0 inline-block cursor-pointer hover:scale-105 ease-in-out duration-300  ml-1 mr-3 rounded-xl shrink-0 overflow-hidden"
-                    key={item.id}
-                  >
-                    <div
-                      className={`w-[96px] overflow-hidden rounded-full ${
-                        selectedInterviewer === item.id
-                          ? "border-4 border-indigo-600"
-                          : ""
-                      }`}
-                      onClick={() => {
-                        setSelectedInterviewer(item.id);
-                      }}
-                    >
-                      <Image
-                        src={item.image}
-                        alt="Picture of the interviewer"
-                        width={70}
-                        height={70}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <CardTitle className="mt-0 text-xs text-center">
-                      {item.name}
-                    </CardTitle>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <p className="mt-3 mb-1 ml-2 font-medium">Agent Instructions (optional)</p>
+            <Textarea
+              value={agentInstructions}
+              className="h-24 mt-2 border-2 border-gray-500 w-[27.5rem] ml-2"
+              placeholder="Add custom instructions for the GPT voice agent (e.g., tone, scope, constraints). Leave empty for default friendly English-only behavior."
+              onChange={(e) => setAgentInstructions(e.target.value)}
+              onBlur={(e) => setAgentInstructions(e.target.value.trim())}
+            />
           </div>
         </div>
         <label className="flex-col mt-2 ml-2 w-full">

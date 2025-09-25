@@ -104,23 +104,25 @@ function CallInfo({
   }, [call_id]);
 
   useEffect(() => {
-    const replaceAgentAndUser = (transcript: string, name: string): string => {
-      const agentReplacement = "**AI interviewer:**";
-      const userReplacement = `**${name}:**`;
-
-      // Replace "Agent:" with "AI interviewer:" and "User:" with the variable `${name}:`
-      let updatedTranscript = transcript
-        .replace(/Agent:/g, agentReplacement)
-        .replace(/User:/g, userReplacement);
-
-      // Add space between the dialogues
-      updatedTranscript = updatedTranscript.replace(/(?:\r\n|\r|\n)/g, "\n\n");
-
-      return updatedTranscript;
+    // Only show agent (interviewer) messages in the UI transcript
+    const filterAgentTranscript = (transcript: string): string => {
+      // Split transcript by lines
+      const lines = transcript.split(/(?:\r\n|\r|\n)/);
+      // Only keep lines that start with 'Agent:' or 'AI interviewer:'
+      const agentLines = lines.filter(line =>
+        line.trim().startsWith('Agent:') || line.trim().startsWith('AI interviewer:')
+      );
+      // Replace 'Agent:' with 'AI interviewer:' for consistency
+      const updatedLines = agentLines.map(line =>
+        line.replace(/^Agent:/, '**AI interviewer:**').replace(/^AI interviewer:/, '**AI interviewer:**')
+      );
+      // Join with double newlines for spacing
+      // eslint-disable-next-line newline-before-return
+      return updatedLines.join('\n\n');
     };
 
-    if (call && name) {
-      setTranscript(replaceAgentAndUser(call?.transcript as string, name));
+    if (call) {
+      setTranscript(filterAgentTranscript(call?.transcript as string));
     }
   }, [call, name]);
 
@@ -277,19 +279,11 @@ function CallInfo({
                   </div>
                 </div>
                 <div className="flex flex-col mt-3">
-                  <p className="font-semibold">Interview Recording</p>
-                  <div className="flex flex-row gap-3 mt-2">
-                    {call?.recording_url && (
-                      <ReactAudioPlayer src={call?.recording_url} controls />
-                    )}
-                    <a
-                      className="my-auto"
-                      href={call?.recording_url}
-                      download=""
-                      aria-label="Download"
-                    >
-                      <DownloadIcon size={20} />
-                    </a>
+                  <p className="font-semibold">Interview Transcript</p>
+                  <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm text-gray-700">
+                      {call?.transcript || "No transcript available"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -368,45 +362,50 @@ function CallInfo({
                   </div>
                 </div>
               )}
-              <div className="flex flex-col gap-3 text-sm p-4 rounded-2xl bg-slate-50">
-                <div className="flex flex-row gap-2  align-middle">
-                  <p className="my-auto">User Sentiment: </p>
-                  <p className="font-medium my-auto">
-                    {call?.call_analysis?.user_sentiment === undefined ? (
-                      <Skeleton className="w-[200px] h-[20px]" />
-                    ) : (
-                      call?.call_analysis?.user_sentiment
-                    )}
-                  </p>
-
-                  <div
-                    className={`${
-                      call?.call_analysis?.user_sentiment == "Neutral"
-                        ? "text-yellow-500"
-                        : call?.call_analysis?.user_sentiment == "Negative"
-                          ? "text-red-500"
-                          : call?.call_analysis?.user_sentiment == "Positive"
-                            ? "text-green-500"
-                            : "text-transparent"
-                    } text-xl`}
-                  >
-                    ●
+              {analytics ? (
+                <div className="flex flex-col gap-3 text-sm p-4 rounded-2xl bg-slate-50">
+                  <div className="flex flex-row gap-2 align-middle">
+                    <p className="my-auto">Overall Score: </p>
+                    <p className="font-medium my-auto">{analytics.overallScore}/100</p>
+                    <div className={`text-xl ${
+                      analytics.overallScore >= 80 ? "text-green-500" :
+                      analytics.overallScore >= 60 ? "text-yellow-500" : "text-red-500"
+                    }`}>
+                      ●
+                    </div>
+                  </div>
+                  <div className="">
+                    <div className="font-medium">
+                      <span className="font-normal">Overall Feedback: </span>
+                      {analytics.overallFeedback}
+                    </div>
+                  </div>
+                  <div className="">
+                    <div className="font-medium">
+                      <span className="font-normal">Call Summary: </span>
+                      {analytics.callSummary}
+                    </div>
+                  </div>
+                  <div className="">
+                    <div className="font-medium">
+                      <span className="font-normal">Recommendation: </span>
+                      <span className={`font-bold ${
+                        analytics.recommendation?.toLowerCase().includes('hire') ? "text-green-600" :
+                        analytics.recommendation?.toLowerCase().includes('reject') ? "text-red-600" : "text-yellow-600"
+                      }`}>
+                        {analytics.recommendation}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="">
-                  <div className="font-medium  ">
-                    <span className="font-normal">Call Summary: </span>
-                    {call?.call_analysis?.call_summary === undefined ? (
-                      <Skeleton className="w-[200px] h-[20px]" />
-                    ) : (
-                      call?.call_analysis?.call_summary
-                    )}
+              ) : (
+                <div className="flex flex-col gap-3 text-sm p-4 rounded-2xl bg-slate-50">
+                  <div className="text-center text-gray-600">
+                    <p>Interview completed using GPT Voice Agent</p>
+                    <p className="text-xs mt-1">Analytics will be available after processing</p>
                   </div>
                 </div>
-                <p className="font-medium ">
-                  {call?.call_analysis?.call_completion_rating_reason}
-                </p>
-              </div>
+              )}
             </div>
           </div>
           {analytics &&
@@ -436,6 +435,12 @@ function CallInfo({
               />
             </ScrollArea>
           </div>
+        {call?.recording_url && (
+          <div className="bg-slate-200 rounded-2xl min-h-[80px] p-4 px-5 my-3">
+            <p className="font-semibold my-2">Interview Recording</p>
+            <audio src={call.recording_url} className="w-full" controls />
+          </div>
+        )}
         </>
       )}
     </div>

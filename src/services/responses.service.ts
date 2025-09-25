@@ -37,7 +37,16 @@ const getAllResponses = async (interviewId: string) => {
       .from("response")
       .select(`*`)
       .eq("interview_id", interviewId)
-      .or(`details.is.null, details->call_analysis.not.is.null`)
+      // Include responses where: details is null, or legacy details.call_analysis exists,
+      // or the new analytics field exists, or is_analysed is true
+      .or(
+        [
+          "details.is.null",
+          "details->call_analysis.not.is.null",
+          "analytics.not.is.null",
+          "is_analysed.is.true",
+        ].join(", ")
+      )
       .eq("is_ended", true)
       .order("created_at", { ascending: false });
 

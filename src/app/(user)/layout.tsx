@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     siteName: "FoloUp",
     images: [
       {
-        url: "/foloup.png",
+        url: "/Aicruit.png",
         width: 800,
         height: 600,
       },

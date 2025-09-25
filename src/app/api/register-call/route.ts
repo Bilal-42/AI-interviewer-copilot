@@ -1,24 +1,19 @@
 import { logger } from "@/lib/logger";
-import { InterviewerService } from "@/services/interviewers.service";
 import { NextResponse } from "next/server";
-import Retell from "retell-sdk";
-
-const retellClient = new Retell({
-  apiKey: process.env.RETELL_API_KEY || "",
-});
+import { randomUUID } from "crypto";
 
 export async function POST(req: Request, res: Response) {
   logger.info("register-call request received");
 
   const body = await req.json();
 
-  const interviewerId = body.interviewer_id;
-  const interviewer = await InterviewerService.getInterviewer(interviewerId);
-
-  const registerCallResponse = await retellClient.call.createWebCall({
-    agent_id: interviewer?.agent_id,
-    retell_llm_dynamic_variables: body.dynamic_data,
-  });
+  // For GPT Realtime, the client connects directly with API key.
+  // We still return a call_id so the rest of the app works unchanged.
+  const registerCallResponse = {
+    call_id: randomUUID(),
+    access_token: "ok",
+    dynamic_data: body.dynamic_data,
+  };
 
   logger.info("Call registered successfully");
 

@@ -20,7 +20,7 @@ export async function POST(req: Request, res: Response) {
 
   try {
     const baseCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
+     model: "gpt-4o-mini-2024-07-18",
       messages: [
         {
           role: "system",
@@ -45,12 +45,12 @@ export async function POST(req: Request, res: Response) {
       },
       { status: 200 },
     );
-  } catch (error) {
-    logger.error("Error generating interview questions");
+  } catch (error: any) {
+  logger.error("Error generating interview questions", error);
 
-    return NextResponse.json(
-      { error: "internal server error" },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json(
+    { error: error?.response?.data || error.message || "internal server error" },
+    { status: 500 }
+  );
+}
 }

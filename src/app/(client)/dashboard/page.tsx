@@ -169,7 +169,6 @@ function Interviews() {
               {interviews.map((item) => (
                 <InterviewCard
                   id={item.id}
-                  interviewerId={item.interviewer_id}
                   key={item.id}
                   name={item.name}
                   url={item.url ?? ""}

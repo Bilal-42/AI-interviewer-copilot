@@ -5,7 +5,6 @@ import { Interviewer } from "@/types/interviewer";
 import { Response } from "@/types/response";
 import React, { useEffect, useState } from "react";
 import { UserCircleIcon, SmileIcon, Info } from "lucide-react";
-import { useInterviewers } from "@/contexts/interviewers.context";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { CandidateStatus } from "@/lib/enum";
 import { convertSecondstoMMSS } from "@/lib/utils";
@@ -45,7 +44,6 @@ function InfoTooltip({ content }: { content: string }) {
 }
 
 function SummaryInfo({ responses, interview }: SummaryProps) {
-  const { interviewers } = useInterviewers();
   const [interviewer, setInterviewer] = useState<Interviewer>();
   const [totalDuration, setTotalDuration] = useState<number>(0);
   const [completedInterviews, setCompletedInterviews] = useState<number>(0);
@@ -85,14 +83,21 @@ function SummaryInfo({ responses, interview }: SummaryProps) {
   };
 
   useEffect(() => {
-    if (!interviewers || !interview) {
-      return;
-    }
-    const interviewer = interviewers.find(
-      (interviewer) => interviewer.id === interview.interviewer_id,
-    );
-    setInterviewer(interviewer);
-  }, [interviewers, interview]);
+    // Set default GPT voice agent info
+    setInterviewer({
+      id: BigInt(0),
+      name: "GPT Voice Agent",
+      description: "AI-powered interviewer using GPT Realtime API",
+      image: "/user-icon.png",
+      audio: "",
+      empathy: 5,
+      exploration: 5,
+      rapport: 5,
+      speed: 5,
+      user_id: "",
+      created_at: new Date(),
+    });
+  }, [interview]);
 
   useEffect(() => {
     if (!responses) {

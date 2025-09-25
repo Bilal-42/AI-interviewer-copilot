@@ -8,11 +8,9 @@ import { CopyCheck } from "lucide-react";
 import { ResponseService } from "@/services/responses.service";
 import axios from "axios";
 import MiniLoader from "@/components/loaders/mini-loader/miniLoader";
-import { InterviewerService } from "@/services/interviewers.service";
 
 interface Props {
   name: string | null;
-  interviewerId: bigint;
   id: string;
   url: string;
   readableSlug: string;
@@ -20,21 +18,11 @@ interface Props {
 
 const base_url = process.env.NEXT_PUBLIC_LIVE_URL;
 
-function InterviewCard({ name, interviewerId, id, url, readableSlug }: Props) {
+function InterviewCard({ name, id, url, readableSlug }: Props) {
   const [copied, setCopied] = useState(false);
   const [responseCount, setResponseCount] = useState<number | null>(null);
   const [isFetching, setIsFetching] = useState(false);
-  const [img, setImg] = useState("");
-
-  useEffect(() => {
-    const fetchInterviewer = async () => {
-      const interviewer =
-        await InterviewerService.getInterviewer(interviewerId);
-      setImg(interviewer.image);
-    };
-    fetchInterviewer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [img, setImg] = useState("/user-icon.png");
 
   useEffect(() => {
     const fetchResponses = async () => {

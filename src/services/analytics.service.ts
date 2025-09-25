@@ -1,6 +1,6 @@
 "use server";
 
-import { OpenAI } from "openai";
+import OpenAI from "openai";
 import { ResponseService } from "@/services/responses.service";
 import { InterviewService } from "@/services/interviews.service";
 import { Question } from "@/types/interview";
@@ -31,11 +31,16 @@ export const generateInterviewAnalytics = async (payload: {
       .map((q: Question, index: number) => `${index + 1}. ${q.question}`)
       .join("\n");
 
+    // Use Azure OpenAI (server-side only)
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT}/extensions`,
+      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      defaultHeaders: {
+        "api-key": process.env.AZURE_OPENAI_API_KEY || "",
+      },
       maxRetries: 5,
-      dangerouslyAllowBrowser: true,
-    });
+      dangerouslyAllowBrowser: false,
+    } as any);
 
     const prompt = getInterviewAnalyticsPrompt(
       interviewTranscript,
@@ -43,7 +48,7 @@ export const generateInterviewAnalytics = async (payload: {
     );
 
     const baseCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
       messages: [
         {
           role: "system",

@@ -13,12 +13,12 @@ import { usePathname } from "next/navigation";
 const inter = Inter({ subsets: ["latin"] });
 
 const metadata = {
-  title: "FoloUp",
+  title: "Aicruit",
   description: " AI-powered Interviews",
   openGraph: {
-    title: "FoloUp",
+    title: "Aicruit",
     description: "AI-powered Interviews",
-    siteName: "FoloUp",
+    siteName: "Aicruit",
     images: [
       {
         url: "/foloup.png",
@@ -36,7 +36,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
 
   return (
     <html lang="en">

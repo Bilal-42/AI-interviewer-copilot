@@ -13,7 +13,6 @@ export interface InterviewBase {
   user_id: string;
   organization_id: string;
   name: string;
-  interviewer_id: bigint;
   objective: string;
   question_count: number;
   time_duration: string;
@@ -21,6 +20,7 @@ export interface InterviewBase {
   questions: Question[];
   description: string;
   response_count: bigint;
+  agent_instructions?: string;
 }
 
 export interface InterviewDetails {

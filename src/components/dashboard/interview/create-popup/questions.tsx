@@ -56,12 +56,10 @@ function QuestionsPopup({ interviewData, setProceed, setOpen }: Props) {
   };
 
   const handleAddQuestion = () => {
-    if (questions.length < interviewData.question_count) {
-      setQuestions([
-        ...questions,
-        { id: uuidv4(), question: "", follow_up_count: 1 },
-      ]);
-    }
+    setQuestions([
+      ...questions,
+      { id: uuidv4(), question: "", follow_up_count: 1 },
+    ]);
   };
 
   const onSave = async () => {
@@ -75,9 +73,10 @@ function QuestionsPopup({ interviewData, setProceed, setOpen }: Props) {
       // Convert BigInts to strings if necessary
       const sanitizedInterviewData = {
         ...interviewData,
-        interviewer_id: interviewData.interviewer_id.toString(),
         response_count: interviewData.response_count.toString(),
         logo_url: organization?.imageUrl || "",
+        // Make agent_instructions optional for now until DB is updated
+        agent_instructions: interviewData.agent_instructions || "",
       };
 
       const response = await axios.post("/api/create-interview", {
@@ -103,7 +102,7 @@ function QuestionsPopup({ interviewData, setProceed, setOpen }: Props) {
     <div>
       <div
         className={`text-center px-1 flex flex-col justify-top items-center w-[38rem] ${
-          interviewData.question_count > 1 ? "h-[29rem]" : ""
+          questions.length > 1 ? "h-[29rem]" : ""
         } `}
       >
         <div className="relative flex justify-center w-full">
@@ -132,20 +131,16 @@ function QuestionsPopup({ interviewData, setProceed, setOpen }: Props) {
           ))}
           <div ref={endOfListRef} />
         </ScrollArea>
-        {questions.length < interviewData.question_count ? (
-          <div
-            className="border-indigo-600 opacity-75 hover:opacity-100 w-fit  rounded-full"
-            onClick={handleAddQuestion}
-          >
-            <Plus
-              size={45}
-              strokeWidth={2.2}
-              className="text-indigo-600  cursor-pointer"
-            />
-          </div>
-        ) : (
-          <></>
-        )}
+        <div
+          className="border-indigo-600 opacity-75 hover:opacity-100 w-fit  rounded-full"
+          onClick={handleAddQuestion}
+        >
+          <Plus
+            size={45}
+            strokeWidth={2.2}
+            className="text-indigo-600  cursor-pointer"
+          />
+        </div>
       </div>
       <p className="mt-3 mb-1 ml-2 font-medium">
         Interview Description{" "}
@@ -172,7 +167,6 @@ function QuestionsPopup({ interviewData, setProceed, setOpen }: Props) {
         <Button
           disabled={
             isClicked ||
-            questions.length < interviewData.question_count ||
             description.trim() === "" ||
             questions.some((question) => question.question.trim() === "")
           }

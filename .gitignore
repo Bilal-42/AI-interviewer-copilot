@@ -8,7 +8,8 @@
 
 # testing
 /coverage
-
+# custom
+README.md
 # next.js
 /.next/
 /out/

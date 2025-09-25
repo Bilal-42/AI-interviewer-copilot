@@ -41,10 +41,11 @@ function DetailsPopup({
   const [interviewerDetails, setInterviewerDetails] = useState<Interviewer>();
 
   const [name, setName] = useState(interviewData.name);
-  const [selectedInterviewer, setSelectedInterviewer] = useState(
-    interviewData.interviewer_id,
+  const [agentInstructions, setAgentInstructions] = useState(
+    interviewData.agent_instructions || "",
   );
   const [objective, setObjective] = useState(interviewData.objective);
+  const [promptText, setPromptText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState<boolean>(
     interviewData.is_anonymous,
   );
@@ -73,12 +74,13 @@ function DetailsPopup({
   const onGenrateQuestions = async () => {
     setLoading(true);
 
+    const effectivePrompt = promptText.trim();
     const data = {
-      name: name.trim(),
-      objective: objective.trim(),
+      name: (name || "Custom Interview").trim(),
+      objective: effectivePrompt || objective.trim(),
       number: numQuestions,
-      context: uploadedDocumentContext,
-    };
+      context: `${effectivePrompt}\n${uploadedDocumentContext}`.trim(),
+    } as any;
 
     const generatedQuestions = (await axios.post(
       "/api/generate-interview-questions",
@@ -99,14 +101,14 @@ function DetailsPopup({
 
     const updatedInterviewData = {
       ...interviewData,
-      name: name.trim(),
-      objective: objective.trim(),
+      name: (name || "Custom Interview").trim(),
+      objective: (effectivePrompt || objective).trim(),
       questions: updatedQuestions,
-      interviewer_id: selectedInterviewer,
       question_count: Number(numQuestions),
       time_duration: duration,
       description: generatedQuestionsResponse.description,
       is_anonymous: isAnonymous,
+      agent_instructions: agentInstructions.trim(),
     };
     setInterviewData(updatedInterviewData);
   };
@@ -119,11 +121,11 @@ function DetailsPopup({
       name: name.trim(),
       objective: objective.trim(),
       questions: [{ id: uuidv4(), question: "", follow_up_count: 1 }],
-      interviewer_id: selectedInterviewer,
       question_count: Number(numQuestions),
       time_duration: String(duration),
       description: "",
       is_anonymous: isAnonymous,
+      agent_instructions: agentInstructions.trim(),
     };
     setInterviewData(updatedInterviewData);
   };
@@ -131,14 +133,15 @@ function DetailsPopup({
   useEffect(() => {
     if (!open) {
       setName("");
-      setSelectedInterviewer(BigInt(0));
       setObjective("");
       setIsAnonymous(false);
       setNumQuestions("");
       setDuration("");
       setIsClicked(false);
+      setAgentInstructions("");
     }
   }, [open]);
+
 
   return (
     <>
@@ -156,74 +159,23 @@ function DetailsPopup({
               onBlur={(e) => setName(e.target.value.trim())}
             />
           </div>
-          <h3 className="text-sm mt-3 font-medium">Select an Interviewer:</h3>
-          <div className="relative flex items-center mt-1">
-            <div
-              id="slider-3"
-              className=" h-36 pt-1 overflow-x-scroll scroll whitespace-nowrap scroll-smooth scrollbar-hide w-[27.5rem]"
-            >
-              {interviewers.map((item, key) => (
-                <div
-                  className=" p-0 inline-block cursor-pointer ml-1 mr-5 rounded-xl shrink-0 overflow-hidden"
-                  key={item.id}
-                >
-                  <button
-                    className="absolute ml-9"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInterviewerDetails(item);
-                      setOpenInterviewerDetails(true);
-                    }}
-                  >
-                    <Info size={18} color="#4f46e5" strokeWidth={2.2} />
-                  </button>
-                  <div
-                    className={`w-[96px] overflow-hidden rounded-full ${
-                      selectedInterviewer === item.id
-                        ? "border-4 border-indigo-600"
-                        : ""
-                    }`}
-                    onClick={() => setSelectedInterviewer(item.id)}
-                  >
-                    <Image
-                      src={item.image}
-                      alt="Picture of the interviewer"
-                      width={70}
-                      height={70}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <CardTitle className="mt-0 text-xs text-center">
-                    {item.name}
-                  </CardTitle>
-                </div>
-              ))}
-            </div>
-            {interviewers.length > 4 ? (
-              <div className="flex-row justify-center ml-3 mb-1 items-center space-y-6">
-                <ChevronRight
-                  className="opacity-50 cursor-pointer hover:opacity-100"
-                  size={27}
-                  onClick={() => slideRight("slider-3", 115)}
-                />
-                <ChevronLeft
-                  className="opacity-50 cursor-pointer hover:opacity-100"
-                  size={27}
-                  onClick={() => slideLeft("slider-3", 115)}
-                />
-              </div>
-            ) : (
-              <></>
-            )}
-          </div>
-          <h3 className="text-sm font-medium">Objective:</h3>
+          <h3 className="text-sm font-medium mt-3">Agent Instructions (optional)</h3>
           <Textarea
-            value={objective}
+            value={agentInstructions}
             className="h-24 mt-2 border-2 border-gray-500 w-[33.2rem]"
-            placeholder="e.g. Find best candidates based on their technical skills and previous projects."
-            onChange={(e) => setObjective(e.target.value)}
-            onBlur={(e) => setObjective(e.target.value.trim())}
+            placeholder="Add custom instructions for the GPT voice agent (e.g., tone, scope, constraints). Leave empty for default friendly English-only behavior."
+            onChange={(e) => setAgentInstructions(e.target.value)}
+            onBlur={(e) => setAgentInstructions(e.target.value.trim())}
           />
+          <h3 className="text-sm font-medium">Prompt (single input)</h3>
+          <Textarea
+            value={promptText}
+            className="h-28 mt-2 border-2 border-gray-500 w-[33.2rem]"
+            placeholder="Describe the job role/stack and what to focus on (e.g., Senior React + Node role, emphasize data structures, concurrency, and system design)."
+            onChange={(e) => setPromptText(e.target.value)}
+            onBlur={(e) => setPromptText(e.target.value.trim())}
+          />
+
           <h3 className="text-sm font-medium mt-2">
             Upload any documents related to the interview.
           </h3>
@@ -261,7 +213,6 @@ function DetailsPopup({
               <input
                 type="number"
                 step="1"
-                max="5"
                 min="1"
                 className="border-b-2 text-center focus:outline-none  border-gray-500 w-14 px-2 py-0.5 ml-3"
                 value={numQuestions}
@@ -271,9 +222,6 @@ function DetailsPopup({
                     value === "" ||
                     (Number.isInteger(Number(value)) && Number(value) > 0)
                   ) {
-                    if (Number(value) > 5) {
-                      value = "5";
-                    }
                     setNumQuestions(value);
                   }
                 }}
@@ -305,15 +253,7 @@ function DetailsPopup({
           </div>
           <div className="flex flex-row w-full justify-center items-center space-x-24 mt-5">
             <Button
-              disabled={
-                (name &&
-                objective &&
-                numQuestions &&
-                duration &&
-                selectedInterviewer != BigInt(0)
-                  ? false
-                  : true) || isClicked
-              }
+              disabled={(!promptText || !numQuestions || !duration) || isClicked}
               className="bg-indigo-600 hover:bg-indigo-800  w-40"
               onClick={() => {
                 setIsClicked(true);
@@ -323,15 +263,7 @@ function DetailsPopup({
               Generate Questions
             </Button>
             <Button
-              disabled={
-                (name &&
-                objective &&
-                numQuestions &&
-                duration &&
-                selectedInterviewer != BigInt(0)
-                  ? false
-                  : true) || isClicked
-              }
+              disabled={(!promptText || !numQuestions || !duration) || isClicked}
               className="bg-indigo-600 w-40 hover:bg-indigo-800"
               onClick={() => {
                 setIsClicked(true);
