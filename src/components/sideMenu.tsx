@@ -16,7 +16,7 @@ function SideMenu() {
           <div className="flex flex-col justify-between gap-2">
             <div
               className={`flex flex-row p-3 rounded-md hover:bg-slate-200 cursor-pointer ${pathname && pathname.startsWith("/chat") ? "bg-indigo-200" : "bg-slate-100"}`}
-              onClick={() => router.push("dashboard/chat")}
+              onClick={() => router.push("/dashboard/chat")}
             >
               <MessageCircle className="font-thin mr-2" />
               <p className="font-medium">Chat</p>
