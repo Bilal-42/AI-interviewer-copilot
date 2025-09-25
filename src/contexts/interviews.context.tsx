@@ -36,10 +36,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
   const fetchInterviews = async () => {
     try {
       setInterviewsLoading(true);
-      const response = await InterviewService.getAllInterviews(
-        user?.id as string,
-        organization?.id as string,
-      );
+      const response = await InterviewService.getAllInterviews();
       setInterviewsLoading(false);
       setInterviews(response);
     } catch (error) {
