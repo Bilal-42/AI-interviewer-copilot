@@ -13,10 +13,15 @@ import { user } from "@nextui-org/react";
 
 // Azure Realtime config (from user)
 const DEFAULT_IS_AZURE = true;
-const DEFAULT_API_KEY = "CagdxDkmB1qPucS7kLiSoX1Agj0Copugsqty4ChACU8fEf6BG4F1JQQJ99BIACHYHv6XJ3w3AAAAACOGFRed";
-const DEFAULT_ENDPOINT = "https://umair-mfv97mzl-eastus2.openai.azure.com/openai/realtime?api-version=2024-10-01-preview&deployment=gpt-realtime";
-const DEFAULT_DEPLOYMENT = "gpt-realtime";
+const DEFAULT_API_KEY = process.env.AZURE_OPENAI_API_KEY as string;
+const DEFAULT_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT as string;
+const DEFAULT_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT as string;
 
+if (!DEFAULT_API_KEY || !DEFAULT_ENDPOINT || !DEFAULT_DEPLOYMENT) {
+  throw new Error(
+    "Missing required Azure OpenAI environment variables. Please set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_DEPLOYMENT in your .env file."
+  );
+}
 type StartCallParams = { accessToken?: string };
 
 export type TranscriptItem = { role: "agent" | "user"; content: string };
