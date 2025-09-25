@@ -13,9 +13,9 @@ import { user } from "@nextui-org/react";
 
 // Azure Realtime config (from user)
 const DEFAULT_IS_AZURE = true;
-const DEFAULT_API_KEY = process.env.AZURE_OPENAI_API_KEY as string;
-const DEFAULT_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT as string;
-const DEFAULT_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT as string;
+const DEFAULT_API_KEY = process.env.NEXT_PUBLIC_AZURE_OPENAI_API_KEY as string;
+const DEFAULT_ENDPOINT = process.env.NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT as string;
+const DEFAULT_DEPLOYMENT = process.env.NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT as string;
 
 if (!DEFAULT_API_KEY || !DEFAULT_ENDPOINT || !DEFAULT_DEPLOYMENT) {
   throw new Error(
